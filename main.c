@@ -20,10 +20,11 @@ void grille_init(int *grid, int val);
 void print_grid(int *grid);
 void plant_mine(int *grid);
 void get_mine_around(int *mine_grid, int *game_grid);
-void get_input(int *game_grid, struct position *pos);
+int get_input(int *game_grid, struct position *pos);
 void discover_case_around(int *grid, int x, int y, int *position_checked, int *position_checked_index, int *mine_grid);
 bool is_in_list(int x, int y, int *list, int position_checked_index);
 void update_game_grid(int *game_grid, int x, int y, int *mine_grid);
+void flag_case(int *game_grid, int x, int y, int *flag_position, int *flag_position_index);
 
 int main() {
 
@@ -34,6 +35,9 @@ int main() {
     // Declaring variables
     int position_checked[COLUMNS*ROWS];  // stores the positions already checked (0s and others)
     int position_checked_index = 0;  // index of the position_checked last element + 1
+    int flag_position[COLUMNS*ROWS];  // stores the positions flagged
+    int flag_position_index = 0;  // index of the flag_position last element + 1
+    int action;  // 0: discover, 1: flag
     bool end_game = false;
 
     t_grid mine_grid;
@@ -61,10 +65,15 @@ int main() {
         print_grid(*game_grid);
 
         // Getting input
-        get_input(*game_grid, &pos);
+        action = get_input(*game_grid, &pos);
 
-        // Discovering cases around
-        discover_case_around(*game_grid, pos.x, pos.y, position_checked, &position_checked_index, *mine_grid);
+        if (!action) {
+            // Discovering cases around
+            discover_case_around(*game_grid, pos.x, pos.y, position_checked, &position_checked_index, *mine_grid);
+        } else {
+            // Flagging case
+            flag_case(*game_grid, pos.x, pos.y, flag_position, &flag_position_index);
+        }
     }
     
 
@@ -117,6 +126,7 @@ void plant_mine(int *grid) {
 
 void print_grid(int *grid) {
     system("clear");
+    int case_value;
     printf("   |  0  1  2  3  4  5  6  7  8  9\n");
     printf("---+--------------------------------\n");
     for (int i = 0; i < COLUMNS; i++) {
@@ -127,10 +137,15 @@ void print_grid(int *grid) {
             }
             // Print the grid
             // if is used to print empty cell instead of 0
-            if (*(grid + i * ROWS + j) > 8) {
-                printf("%2c ", *(grid + i * ROWS + j));
+            case_value = *(grid + i * ROWS + j);
+            if (case_value > 8) {   // if case_value is a caracter
+                if (case_value == FLAG) {
+                    printf("\033[31m%2c \033[0m", case_value);  // print red flag
+                    continue;
+                }
+                printf("%2c ", case_value);
             } else {
-            printf("%2d ", *(grid + i * ROWS + j));
+                printf("%2d ", case_value);
             }
         }
         printf("\n");
@@ -175,12 +190,15 @@ void get_mine_around(int *mine_grid, int *game_grid) {
     }
 }
 
-void get_input(int *game_grid, struct position *pos) {
-    int x, y;
+int get_input(int *game_grid, struct position *pos) {
+    int x, y, action;
 
-    printf("Enter line: ");
+    printf("0: Discover a case, 1: Flag a case : \t");
+    scanf("%d", &action);
+
+    printf("Enter line: \t");
     scanf("%d", &x);
-    printf("Enter column: ");
+    printf("Enter column: \t");
     scanf("%d", &y);
     while ((x < 0 || x > COLUMNS || y < 0 || y > ROWS) || (*(game_grid + x * ROWS + y) != EMPTY_CELL)) {
         printf("Invalid input, please try again.\n");
@@ -192,6 +210,7 @@ void get_input(int *game_grid, struct position *pos) {
 
     pos->x = x;
     pos->y = y;
+    return action;
 }
 
 void discover_case_around(int *grid, int x, int y, int *position_checked, int *position_checked_index, int *mine_grid) {
@@ -266,4 +285,19 @@ void update_game_grid(int *game_grid, int x, int y, int *mine_grid) {
     printf("x: %d, y: %d\n", x, y);
     printf("value: %d\n", *(mine_grid + x * ROWS + y));
     printf("game_grid: %d\n", *(game_grid + x * ROWS + y));
+}
+
+void flag_case(int *game_grid, int x, int y, int *flag_position, int *flag_position_index) {
+    /* Flag the case */
+    int case_value = *(game_grid + x * ROWS + y);
+
+    if (case_value == FLAG) {
+        *(game_grid + x * ROWS + y) = EMPTY_CELL;        
+        return;
+    }
+
+    *(game_grid + x * ROWS + y) = FLAG;
+    flag_position[*flag_position_index] = x;
+    flag_position[*flag_position_index+1] = y;
+    *flag_position_index += 2;
 }
